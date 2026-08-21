@@ -11,7 +11,7 @@
         .header { text-align: center; margin-bottom: 15px; }
         .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
         .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
-        #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 280px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; }
+        #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; }
         #scanner-viewport video { width: 100%; height: 100%; object-fit: cover; }
         .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 75%; height: 80px; border: 2px dashed #00ffcc; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; }
         .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px; max-width: 450px; margin: 15px auto 0; }
@@ -19,14 +19,22 @@
         .product-meta { font-size: 14px; color: #a1a1aa; margin-bottom: 12px; }
         .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .metric-box { background: #27272a; padding: 10px; border-radius: 8px; text-align: center; }
-        .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; }
+        .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
         .metric-value { font-size: 16px; font-weight: bold; color: #fff; margin-top: 2px; }
-        .price-input-row { display: flex; gap: 8px; margin-top: 10px; }
+        
+        /* New Interface Styling for Store Location Toggles */
+        .location-section { background: #27272a; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
+        .location-row { display: flex; gap: 8px; margin-top: 6px; }
+        .store-dropdown { flex: 1; background: #0a0a0c; border: 1px solid #3f3f46; color: #fff; padding: 8px; border-radius: 6px; font-size: 14px; outline: none; }
+        .geo-btn { background: #3f3f46; color: #fff; border: none; border-radius: 6px; padding: 0 12px; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .geo-btn:active { background: #52525b; }
+
+        .price-input-row { display: flex; gap: 8px; margin-top: 6px; }
         .price-input { flex: 1; background: #0a0a0c; border: 1px solid #3f3f46; border-radius: 8px; color: #fff; padding: 10px; font-size: 16px; text-align: center; outline: none; }
         .price-input:focus { border-color: #00ffcc; }
         .submit-btn { background: #00ffcc; color: #0a0a0c; border: none; border-radius: 8px; padding: 0 20px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
         .submit-btn:active { background: #00cca3; }
-        .alert-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 10px; color: #f87171; font-size: 13px; font-weight: 500; display: none; text-align: center; }
+        .alert-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 10px; color: #f87171; font-size: 13px; font-weight: 500; display: none; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -39,16 +47,37 @@
         <div id="product-display" style="display: none;">
             <div class="product-title" id="p-name">Querying registries...</div>
             <div class="product-meta" id="p-upc">UPC: --------</div>
+            
             <div class="metric-grid">
                 <div class="metric-box"><div class="metric-label">Registry Weight</div><div class="metric-value" id="p-weight">-- oz</div></div>
                 <div class="metric-box"><div class="metric-label">Brand Owner</div><div class="metric-value" id="p-brand">--</div></div>
             </div>
-            <div class="alert-box" id="shrinkflation-alert"></div>
-            <div class="metric-label" style="margin-top: 10px;">Enter Current Shelf Price ($)</div>
+
+            <!-- NEW: Optional Store Selection Block -->
+            <div class="location-section">
+                <label class="metric-label">📍 Where is this price found?</label>
+                <div class="location-row">
+                    <select class="store-dropdown" id="store-select">
+                        <option value="Unknown">Select Store (Anonymous)</option>
+                        <option value="Walmart">Walmart</option>
+                        <option value="Kroger">Kroger</option>
+                        <option value="Target">Target</option>
+                        <option value="Aldi">Aldi</option>
+                        <option value="Dollar General">Dollar General</option>
+                        <option value="Costco">Costco</option>
+                        <option value="Whole Foods">Whole Foods</option>
+                    </select>
+                    <button class="geo-btn" onclick="getGPSLocation()" id="geo-button-text">📍 Use GPS</button>
+                </div>
+            </div>
+
+            <div class="metric-label">Enter Current Shelf Price ($)</div>
             <div class="price-input-row">
                 <input type="number" step="0.01" class="price-input" id="shelf-price-field" placeholder="0.00" inputmode="decimal">
                 <button class="submit-btn" onclick="calculateLiveMetrics()">Analyze</button>
             </div>
+            
+            <div class="alert-box" id="shrinkflation-alert"></div>
         </div>
         <div id="status-placeholder" style="text-align: center; color: #71717a; padding: 20px 0; font-size: 14px;">
             Waiting for an active barcode scan...
@@ -57,11 +86,13 @@
     <script>
         let currentProductOunces = 0;
         let lastScannedBarcode = "";
+
         Quagga.init({
             inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#scanner-viewport'), constraints: { facingMode: "environment", width: 640, height: 480 } },
             decoder: { readers: ["upc_reader", "upc_e_reader", "ean_reader"] },
             locate: true
         }, function(err) { if (err) { console.error("Camera Init Error:", err); return; } Quagga.start(); });
+
         Quagga.onDetected(function(data) {
             let barcode = data.codeResult.code;
             if (barcode === lastScannedBarcode) return;
@@ -73,6 +104,7 @@
             document.getElementById('shrinkflation-alert').style.display = 'none';
             fetchProductFromRegistry(barcode);
         });
+
         function fetchProductFromRegistry(upc) {
             let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
             fetch(apiUrl)
@@ -95,20 +127,25 @@
                 })
                 .catch(err => { console.error("Network fault:", err); document.getElementById('p-name').innerText = "Offline Mode Active"; });
         }
-        function calculateLiveMetrics() {
-            let price = parseFloat(document.getElementById('shelf-price-field').value);
-            if (!price || price <= 0) return;
-            let pricePerOunce = (price / currentProductOunces).toFixed(3);
-            let alertBox = document.getElementById('shrinkflation-alert');
-            alertBox.style.display = 'block';
-            if (pricePerOunce > 0.35) { 
-                alertBox.style.color = '#f87171'; alertBox.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; alertBox.style.borderColor = 'rgba(239, 68, 68, 0.2)';
-                alertBox.innerHTML = `<strong>🚨 SQUEEZE DETECTED:</strong> Price is <strong>$${pricePerOunce}/oz</strong>. This is higher than regional metrics. Check alternatives.`;
-            } else {
-                alertBox.style.color = '#34d399'; alertBox.style.backgroundColor = 'rgba(52, 211, 153, 0.1)'; alertBox.style.borderColor = 'rgba(52, 211, 153, 0.2)';
-                alertBox.innerHTML = `<strong>✅ FAIR MATRIX VALUE:</strong> Price is <strong>$${pricePerOunce}/oz</strong>. Matches standard historical weight and distribution profiles.`;
-            }
-        }
-    </script>
-</body>
-</html>
+
+        // NEW: Privacy-focused native GPS coordinate lookup function
+        function getGPSLocation() {
+            let btnText = document.getElementById('geo-button-text');
+            if (!navigator.geolocation) { alert("GPS not supported by your browser."); return; }
+            
+            btnText.innerText = "Searching...";
+            
+            navigator.geolocation.getCurrentPosition(function(position) {
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+                
+                // Query OpenStreetMap's free lookup engine to find the nearest retail business name
+                let mapUrl = `https://openstreetmap.org{lat}&lon=${lon}`;
+                
+                fetch(mapUrl)
+                    .then(res => res.json())
+                    .then(geoData => {
+                        let storeName = geoData.address.shop || geoData.address.amenity || geoData.address.supermarket || "Current Store";
+                        btnText.innerText = "📍 Found!";
+                        
+                        // Dynamically inject the found shop name straight into the selector list
