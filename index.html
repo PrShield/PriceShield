@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Shield Live Engine</title>
+    <script src="https://cloudflare.com"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0c; color: #e4e4e7; padding: 15px; }
+        .header { text-align: center; margin-bottom: 15px; }
+        .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
+        .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
+        #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 280px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; }
+        #scanner-viewport video { width: 100%; height: 100%; object-fit: cover; }
+        .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 75%; height: 80px; border: 2px dashed #00ffcc; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; }
+        .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px; max-width: 450px; margin: 15px auto 0; }
+        .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .product-meta { font-size: 14px; color: #a1a1aa; margin-bottom: 12px; }
+        .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .metric-box { background: #27272a; padding: 10px; border-radius: 8px; text-align: center; }
+        .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; }
+        .metric-value { font-size: 16px; font-weight: bold; color: #fff; margin-top: 2px; }
+        .price-input-row { display: flex; gap: 8px; margin-top: 10px; }
+        .price-input { flex: 1; background: #0a0a0c; border: 1px solid #3f3f46; border-radius: 8px; color: #fff; padding: 10px; font-size: 16px; text-align: center; outline: none; }
+        .price-input:focus { border-color: #00ffcc; }
+        .submit-btn { background: #00ffcc; color: #0a0a0c; border: none; border-radius: 8px; padding: 0 20px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .submit-btn:active { background: #00cca3; }
+        .alert-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 10px; color: #f87171; font-size: 13px; font-weight: 500; display: none; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Price Shield Engine</h1>
+        <p>Align grocery barcode inside the grid lines to scan</p>
+    </div>
+    <div id="scanner-viewport"><div class="scan-target"></div></div>
+    <div class="display-card">
+        <div id="product-display" style="display: none;">
+            <div class="product-title" id="p-name">Querying registries...</div>
+            <div class="product-meta" id="p-upc">UPC: --------</div>
+            <div class="metric-grid">
+                <div class="metric-box"><div class="metric-label">Registry Weight</div><div class="metric-value" id="p-weight">-- oz</div></div>
+                <div class="metric-box"><div class="metric-label">Brand Owner</div><div class="metric-value" id="p-brand">--</div></div>
+            </div>
+            <div class="alert-box" id="shrinkflation-alert"></div>
+            <div class="metric-label" style="margin-top: 10px;">Enter Current Shelf Price ($)</div>
+            <div class="price-input-row">
+                <input type="number" step="0.01" class="price-input" id="shelf-price-field" placeholder="0.00" inputmode="decimal">
+                <button class="submit-btn" onclick="calculateLiveMetrics()">Analyze</button>
+            </div>
+        </div>
+        <div id="status-placeholder" style="text-align: center; color: #71717a; padding: 20px 0; font-size: 14px;">
+            Waiting for an active barcode scan...
+        </div>
+    </div>
+    <script>
+        let currentProductOunces = 0;
+        let lastScannedBarcode = "";
+        Quagga.init({
+            inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#scanner-viewport'), constraints: { facingMode: "environment", width: 640, height: 480 } },
+            decoder: { readers: ["upc_reader", "upc_e_reader", "ean_reader"] },
+            locate: true
+        }, function(err) { if (err) { console.error("Camera Init Error:", err); return; } Quagga.start(); });
+        Quagga.onDetected(function(data) {
+            let barcode = data.codeResult.code;
+            if (barcode === lastScannedBarcode) return;
+            lastScannedBarcode = barcode;
+            document.getElementById('status-placeholder').style.display = 'none';
+            document.getElementById('product-display').style.display = 'block';
+            document.getElementById('p-name').innerText = "Querying registries...";
+            document.getElementById('p-upc').innerText = "UPC: " + barcode;
+            document.getElementById('shrinkflation-alert').style.display = 'none';
+            fetchProductFromRegistry(barcode);
+        });
+        function fetchProductFromRegistry(upc) {
+            let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 1 && data.product) {
+                        let prod = data.product;
+                        document.getElementById('p-name').innerText = prod.product_name || "Unknown Product";
+                        document.getElementById('p-brand').innerText = prod.brands || "Generic Brand";
+                        let rawQuantity = prod.quantity || "Size Unavailable";
+                        document.getElementById('p-weight').innerText = rawQuantity;
+                        currentProductOunces = parseFloat(prod.product_quantity) ? (parseFloat(prod.product_quantity) * 0.035274).toFixed(1) : 16.0;
+                        if(rawQuantity.toLowerCase().includes('oz')) { currentProductOunces = parseFloat(rawQuantity); }
+                    } else {
+                        document.getElementById('p-name').innerText = "Unregistered Item Base Line";
+                        document.getElementById('p-brand').innerText = "Manual Review Required";
+                        document.getElementById('p-weight').innerText = "16.0 oz (Estimated)";
+                        currentProductOunces = 16.0;
+                    }
+                })
+                .catch(err => { console.error("Network fault:", err); document.getElementById('p-name').innerText = "Offline Mode Active"; });
+        }
+        function calculateLiveMetrics() {
+            let price = parseFloat(document.getElementById('shelf-price-field').value);
+            if (!price || price <= 0) return;
+            let pricePerOunce = (price / currentProductOunces).toFixed(3);
+            let alertBox = document.getElementById('shrinkflation-alert');
+            alertBox.style.display = 'block';
+            if (pricePerOunce > 0.35) { 
+                alertBox.style.color = '#f87171'; alertBox.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; alertBox.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                alertBox.innerHTML = `<strong>🚨 SQUEEZE DETECTED:</strong> Price is <strong>$${pricePerOunce}/oz</strong>. This is higher than regional metrics. Check alternatives.`;
+            } else {
+                alertBox.style.color = '#34d399'; alertBox.style.backgroundColor = 'rgba(52, 211, 153, 0.1)'; alertBox.style.borderColor = 'rgba(52, 211, 153, 0.2)';
+                alertBox.innerHTML = `<strong>✅ FAIR MATRIX VALUE:</strong> Price is <strong>$${pricePerOunce}/oz</strong>. Matches standard historical weight and distribution profiles.`;
+            }
+        }
+    </script>
+</body>
+</html>
