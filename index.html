@@ -22,7 +22,6 @@
         .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
         .metric-value { font-size: 16px; font-weight: bold; color: #fff; margin-top: 2px; }
         
-        /* New Interface Styling for Store Location Toggles */
         .location-section { background: #27272a; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
         .location-row { display: flex; gap: 8px; margin-top: 6px; }
         .store-dropdown { flex: 1; background: #0a0a0c; border: 1px solid #3f3f46; color: #fff; padding: 8px; border-radius: 6px; font-size: 14px; outline: none; }
@@ -53,7 +52,6 @@
                 <div class="metric-box"><div class="metric-label">Brand Owner</div><div class="metric-value" id="p-brand">--</div></div>
             </div>
 
-            <!-- NEW: Optional Store Selection Block -->
             <div class="location-section">
                 <label class="metric-label">📍 Where is this price found?</label>
                 <div class="location-row">
@@ -87,8 +85,19 @@
         let currentProductOunces = 0;
         let lastScannedBarcode = "";
 
+        // Core camera configuration block tailored for iOS Safari compatibility
         Quagga.init({
-            inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#scanner-viewport'), constraints: { facingMode: "environment", width: 640, height: 480 } },
+            inputStream: { 
+                name: "Live", 
+                type: "LiveStream", 
+                target: document.querySelector('#scanner-viewport'), 
+                constraints: { 
+                    facingMode: "environment", 
+                    width: 640, 
+                    height: 480,
+                    playsInline: true // This enforces immediate rendering inside Safari UI frames
+                } 
+            },
             decoder: { readers: ["upc_reader", "upc_e_reader", "ean_reader"] },
             locate: true
         }, function(err) { if (err) { console.error("Camera Init Error:", err); return; } Quagga.start(); });
@@ -128,24 +137,18 @@
                 .catch(err => { console.error("Network fault:", err); document.getElementById('p-name').innerText = "Offline Mode Active"; });
         }
 
-        // NEW: Privacy-focused native GPS coordinate lookup function
         function getGPSLocation() {
             let btnText = document.getElementById('geo-button-text');
             if (!navigator.geolocation) { alert("GPS not supported by your browser."); return; }
-            
             btnText.innerText = "Searching...";
-            
             navigator.geolocation.getCurrentPosition(function(position) {
                 let lat = position.coords.latitude;
                 let lon = position.coords.longitude;
-                
-                // Query OpenStreetMap's free lookup engine to find the nearest retail business name
                 let mapUrl = `https://openstreetmap.org{lat}&lon=${lon}`;
-                
                 fetch(mapUrl)
                     .then(res => res.json())
                     .then(geoData => {
                         let storeName = geoData.address.shop || geoData.address.amenity || geoData.address.supermarket || "Current Store";
                         btnText.innerText = "📍 Found!";
-                        
-                        // Dynamically inject the found shop name straight into the selector list
+                        let dropdown = document.getElementById('store-select');
+                        let newOption = document.createElement("option");
