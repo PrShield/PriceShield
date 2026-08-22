@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Shield Live Engine</title>
+    <!-- Include a highly optimized, standard barcode processing canvas decoder -->
+    <script src="https://unpkg.com"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0c; color: #e4e4e7; padding: 15px; }
@@ -12,19 +14,18 @@
         .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
         .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
         
-        /* The Camera Activation Container Box */
-        #scanner-viewport { width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; position: relative; display: flex; align-items: center; justify-content: center; }
+        /* Unified Viewfinder Box Container */
+        #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; display: flex; align-items: center; justify-content: center; }
+        #native-video-feed { width: 100%; height: 100%; object-fit: cover; display: block; }
         .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 75%; height: 80px; border: 2px dashed #00ffcc; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; z-index: 10; }
         
-        /* Styled Mobile Trigger Label that opens the actual camera hardware lens */
-        .lens-trigger-label { background: #00ffcc; color: #0a0a0c; border: none; padding: 14px 28px; border-radius: 12px; font-weight: bold; font-size: 15px; cursor: pointer; z-index: 20; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.3); display: inline-block; text-align: center; transition: background 0.2s; }
-        .lens-trigger-label:active { background: #00cca3; }
-        #hidden-camera-hook { display: none; }
-
+        /* Interactive overlay button designed to shatter Apple's hardware block */
+        .start-overlay-btn { position: absolute; background: #00ffcc; color: #0a0a0c; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 20; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.3); }
+        .start-overlay-btn:active { background: #00cca3; }
+        
         .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px; max-width: 450px; margin: 15px auto 0; }
         .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
         .product-meta { font-size: 14px; color: #a1a1aa; margin-bottom: 12px; }
-        
         .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .metric-box { background: #27272a; padding: 10px; border-radius: 8px; text-align: center; }
         .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
@@ -46,20 +47,20 @@
 
     <div class="header">
         <h1>Price Shield Engine</h1>
-        <p>Snapshot any item barcode to instantly extract true data</p>
+        <p>Align grocery barcode inside the grid lines to scan</p>
     </div>
     
     <div id="scanner-viewport">
-        <!-- Bypasses browser restrictions by calling the native iPhone environment camera app directly -->
-        <label for="hidden-camera-hook" class="lens-trigger-label">📸 Open Scanner Camera</label>
-        <input type="file" accept="image/*" capture="environment" id="hidden-camera-hook" onchange="decodeCapturedBarcode(event)">
+        <!-- Interactive start block cleanly maps authorization to satisfy Safari requirements -->
+        <button class="start-overlay-btn" id="trigger-lens-btn" onclick="initializeLiveScanner()">⚡ Start Scanner</button>
+        <video id="native-video-feed" autoplay playsinline muted></video>
         <div class="scan-target"></div>
     </div>
 
     <div class="display-card">
         <div id="product-display">
             <div class="product-title" id="p-name">Scan Target Standing By</div>
-            <div class="product-meta" id="p-upc">Tap button to point camera at barcode lines</div>
+            <div class="product-meta" id="p-upc">Tap 'Start Scanner' to open camera view</div>
             
             <div class="metric-grid">
                 <div class="metric-box">
@@ -100,63 +101,69 @@
 
     <script>
         let currentProductOunces = 16.0;
+        let lastScannedBarcode = "";
+        const videoElement = document.getElementById('native-video-feed');
+        const triggerBtn = document.getElementById('trigger-lens-btn');
+        const codeReader = new ZXing.BrowserMultiFormatReader();
 
-        // Processes the captured photo data array locally without cross-origin script freezes
-        function decodeCapturedBarcode(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            document.getElementById('p-name').innerText = "Analyzing Barcode Image...";
-            document.getElementById('p-upc').innerText = "Processing pixel metrics...";
-
-            // Create an image bitmap to read the barcode numbers directly from the shot
-            const img = new Image();
-            img.src = URL.createObjectURL(file);
-            img.onload = () => {
-                // Automated fallback logic simulates successful ledger database extraction 
-                // using the open food facts data framework we established
-                let mockScannedUPC = "016000124792"; 
-                document.getElementById('p-name').innerText = "Querying registries...";
-                document.getElementById('p-upc').innerText = "UPC: " + mockScannedUPC;
-                fetchProductFromRegistry(mockScannedUPC);
+        // Activates the live camera feed straight into the webpage container frame
+        function initializeLiveScanner() {
+            triggerBtn.innerText = "Connecting...";
+            
+            // STRICT HARDWARE LOCK: Forces the app to ignore the selfie camera and lock directly to the rear lens array
+            const constraints = {
+                audio: false,
+                video: {
+                    facingMode: { exact: "environment" },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
             };
-        }
 
-        function fetchProductFromRegistry(upc) {
-            let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
-            fetch(apiUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 1 && data.product) {
-                        let prod = data.product;
-                        document.getElementById('p-name').innerText = prod.product_name || "Honey Nut Cheerios";
-                        document.getElementById('p-brand').innerText = prod.brands || "General Mills";
-                        let rawQuantity = prod.quantity || "10.8 oz";
-                        document.getElementById('p-weight').innerText = rawQuantity;
-                        
-                        currentProductOunces = parseFloat(prod.product_quantity) ? (parseFloat(prod.product_quantity) * 0.035274).toFixed(1) : 10.8;
-                        if(rawQuantity.toLowerCase().includes('oz')) { currentProductOunces = parseFloat(rawQuantity); }
-                    } else {
-                        // Standard database model fallback to ensure usability inside any grocery storefront
-                        document.getElementById('p-name').innerText = "Honey Nut Cheerios";
-                        document.getElementById('p-brand').innerText = "General Mills";
-                        document.getElementById('p-weight').innerText = "10.8 oz";
-                        currentProductOunces = 10.8;
-                    }
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then((stream) => {
+                    // Hide the trigger overlay immediately
+                    triggerBtn.style.display = 'none';
+                    videoElement.srcObject = stream;
+                    
+                    document.getElementById('p-name').innerText = "Live Scanner Active";
+                    document.getElementById('p-upc').innerText = "Center barcode inside the neon rectangle";
+                    
+                    // Fire up the continuous analysis scanner loop directly using the stream frames
+                    codeReader.decodeFromVideoElement(videoElement, (result, err) => {
+                        if (result) {
+                            let barcodeValue = result.text;
+                            
+                            // Block redundant hits on the same barcode
+                            if (barcodeValue === lastScannedBarcode) return;
+                            lastScannedBarcode = barcodeValue;
+                            
+                            // Play a clean haptic alert confirmation sound
+                            if (window.navigator.vibrate) window.navigator.vibrate(100);
+                            
+                            document.getElementById('p-name').innerText = "Querying registries...";
+                            document.getElementById('p-upc').innerText = "UPC Captured: " + barcodeValue;
+                            fetchProductFromRegistry(barcodeValue);
+                        }
+                    });
                 })
-                .catch(() => {
-                    document.getElementById('p-name').innerText = "Honey Nut Cheerios";
-                    document.getElementById('p-brand').innerText = "General Mills";
-                    document.getElementById('p-weight').innerText = "10.8 oz";
-                    currentProductOunces = 10.8;
+                .catch((err) => {
+                    console.error("Camera hook failed:", err);
+                    // Fail-safe graceful fallback option if the system blocks the exact environment parameter
+                    fallbackScannerLaunch();
                 });
         }
 
-        function getGPSLocation() {
-            let btnText = document.getElementById('geo-button-text');
-            if (!navigator.geolocation) { alert("GPS not supported."); return; }
-            btnText.innerText = "...";
-            navigator.geolocation.getCurrentPosition(function(position) {
-                let lat = position.coords.latitude;
-                let lon = position.coords.longitude;
-                let mapUrl = `https://openstreetmap.org{lat}&lon=${lon}`;
+        // Safe fallback launcher utilizing broader video constraints if exact tracking breaks
+        function fallbackScannerLaunch() {
+            codeReader.decodeFromInputVideoDevice(undefined, 'native-video-feed', (result, err) => {
+                if (result) {
+                    let barcodeValue = result.text;
+                    if (barcodeValue === lastScannedBarcode) return;
+                    lastScannedBarcode = barcodeValue;
+                    
+                    document.getElementById('p-name').innerText = "Querying registries...";
+                    document.getElementById('p-upc').innerText = "UPC Captured: " + barcodeValue;
+                    fetchProductFromRegistry(barcodeValue);
+                }
+            });
