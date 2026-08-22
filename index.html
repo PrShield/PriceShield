@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Shield Live Engine</title>
-    <!-- Include the ultra-stable, iOS-native Instascan framework -->
-    <script src="https://rawgit.com"></script>
+    <!-- Include the modern, standard HTML5 QR and Barcode decoder script -->
+    <script src="https://unpkg.com"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0c; color: #e4e4e7; padding: 15px; }
@@ -14,15 +14,8 @@
         .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
         .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
         
-        /* The Rigid Rectangular Viewfinder Frame Box */
-        #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; display: flex; align-items: center; justify-content: center; }
-        
-        /* Enforces video inline parameters so it CANNOT open the full camera app */
-        #native-video-feed { width: 100%; height: 100%; object-fit: cover; display: block; position: absolute; top: 0; left: 0; }
-        .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 75%; height: 80px; border: 2px dashed #00ffcc; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; z-index: 10; }
-        
-        .start-overlay-btn { position: absolute; background: #00ffcc; color: #0a0a0c; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 20; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.3); }
-        .start-overlay-btn:active { background: #00cca3; }
+        /* The Rigid Viewfinder Box Container */
+        #scanner-viewport { width: 100%; max-width: 450px; min-height: 250px; margin: 0 auto; border: 2px dashed #3f3f46; border-radius: 16px; overflow: hidden; background: #18181b; position: relative; padding: 10px; }
         
         .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px; max-width: 450px; margin: 15px auto 0; }
         .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
@@ -42,27 +35,26 @@
         .price-input:focus { border-color: #00ffcc; }
         .submit-btn { background: #00ffcc; color: #0a0a0c; border: none; border-radius: 8px; padding: 0 20px; font-size: 14px; font-weight: 700; cursor: pointer; }
         .alert-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 10px; color: #f87171; font-size: 13px; font-weight: 500; display: none; text-align: center; margin-top: 10px; }
+        
+        /* Forces the native browser button to look clean and styled matching your dark theme */
+        button { background: #00ffcc !important; color: #0a0a0c !important; border: none !important; padding: 12px 24px !important; font-weight: bold !important; font-size: 14px !important; border-radius: 8px !important; cursor: pointer !important; margin: 10px auto !important; display: block !important; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.2) !important; }
+        button:active { background: #00cca3 !important; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h1>Price Shield Engine</h1>
-        <p>Align grocery barcode inside the grid lines to scan</p>
+        <p>Grant camera permissions to start real-time tracking</p>
     </div>
     
-    <div id="scanner-viewport">
-        <!-- Human click trigger bypasses Apple security tags -->
-        <button class="start-overlay-btn" id="trigger-lens-btn" onclick="initializeInstascan()">⚡ Start Scanner</button>
-        <!-- The hardware fixes: playsinline, autoplay, and muted completely lock down the frame -->
-        <video id="native-video-feed" playsinline autoplay muted></video>
-        <div class="scan-target"></div>
-    </div>
+    <!-- This container is where the standard browser video feed will render -->
+    <div id="scanner-viewport"></div>
 
     <div class="display-card">
         <div id="product-display">
             <div class="product-title" id="p-name">Scan Target Standing By</div>
-            <div class="product-meta" id="p-upc">Tap 'Start Scanner' to open camera box</div>
+            <div class="product-meta" id="p-upc">Tap the button above to request lens tracking</div>
             
             <div class="metric-grid">
                 <div class="metric-box">
@@ -87,14 +79,14 @@
                         <option value="Dollar General">Dollar General</option>
                         <option value="Costco">Costco</option>
                     </select>
-                    <button class="geo-btn" onclick="getGPSLocation()" id="geo-button-text">📍 GPS</button>
+                    <button type="button" class="geo-btn" onclick="getGPSLocation()" id="geo-button-text" style="margin:0!important; padding:0 12px!important; font-size:14px!important;">📍 GPS</button>
                 </div>
             </div>
 
             <div class="metric-label">Enter Current Shelf Price ($)</div>
             <div class="price-input-row">
                 <input type="number" step="0.01" class="price-input" id="shelf-price-field" placeholder="0.00" inputmode="decimal">
-                <button class="submit-btn" onclick="calculateLiveMetrics()">Analyze</button>
+                <button type="button" class="submit-btn" onclick="calculateLiveMetrics()" style="margin:0!important;">Analyze</button>
             </div>
             
             <div class="alert-box" id="shrinkflation-alert"></div>
@@ -104,46 +96,29 @@
     <script>
         let currentProductOunces = 16.0;
         let lastScannedBarcode = "";
-        const triggerBtn = document.getElementById('trigger-lens-btn');
 
-        function initializeInstascan() {
-            triggerBtn.innerText = "Connecting...";
+        // Enforce the standard HTML5 scanner initialization script parameters
+        const html5QrcodeScanner = new Html5QrcodeScanner("scanner-viewport", { 
+            fps: 10, 
+            qrbox: { width: 280, height: 120 }, // Perfect size for long grocery barcodes
+            rememberLastUsedCamera: true,
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA] // Blocks files; forces the live window stream
+        }, false);
+
+        function onScanSuccess(decodedText, decodedResult) {
+            if (decodedText === lastScannedBarcode) return;
+            lastScannedBarcode = decodedText;
             
-            // Instascan engine setup targeting the native video object frame
-            let scanner = new Instascan.Scanner({ 
-                video: document.getElementById('native-video-feed'), 
-                mirror: false, // Prevents flipping the barcode text backward
-                backgroundScan: false 
-            });
-
-            // Capture logic triggers instantly when barcode boundaries match scanning matrices
-            scanner.addListener('scan', function (content) {
-                if (content === lastScannedBarcode) return;
-                lastScannedBarcode = content;
-                
-                document.getElementById('p-name').innerText = "Querying registries...";
-                document.getElementById('p-upc').innerText = "UPC Captured: " + content;
-                fetchProductFromRegistry(content);
-            });
-
-            // Lock onto the phone's physical back lenses
-            Instascan.Camera.getCameras().then(function (cameras) {
-                if (cameras.length > 0) {
-                    triggerBtn.style.display = 'none';
-                    
-                    // Rear camera routing logic for multi-lens arrays (like iPhone 13)
-                    let backCam = cameras.find(cam => cam.name.toLowerCase().includes('back') || cam.name.toLowerCase().includes('environment')) || cameras[cameras.length - 1];
-                    scanner.start(backCam);
-                } else {
-                    console.error('No hardware lens detected.');
-                    triggerBtn.innerText = "⚠️ No Camera Found";
-                }
-            }).catch(function (e) {
-                console.error(e);
-                triggerBtn.innerText = "⚠️ Access Blocked";
-                alert("Ensure your Safari browser location/camera permissions are set to ALLOW.");
-            });
+            // Trigger haptic vibration confirmation if device array supports it
+            if (navigator.vibrate) navigator.vibrate(100);
+            
+            document.getElementById('p-name').innerText = "Querying registries...";
+            document.getElementById('p-upc').innerText = "UPC: " + decodedText;
+            fetchProductFromRegistry(decodedText);
         }
+
+        // Render the script engine window natively inside your design template box
+        html5QrcodeScanner.render(onScanSuccess);
 
         function fetchProductFromRegistry(upc) {
             let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
@@ -161,3 +136,27 @@
                         if(rawQuantity.toLowerCase().includes('oz')) { currentProductOunces = parseFloat(rawQuantity); }
                     } else {
                         document.getElementById('p-name').innerText = "Unregistered Item Base Line";
+                        document.getElementById('p-brand').innerText = "Manual Review Required";
+                        document.getElementById('p-weight').innerText = "16.0 oz (Estimated)";
+                        currentProductOunces = 16.0;
+                    }
+                })
+                .catch(err => { console.error(err); });
+        }
+
+        function getGPSLocation() {
+            let btnText = document.getElementById('geo-button-text');
+            if (!navigator.geolocation) { alert("GPS not supported."); return; }
+            btnText.innerText = "...";
+            navigator.geolocation.getCurrentPosition(function(position) {
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+                let mapUrl = `https://openstreetmap.org{lat}&lon=${lon}`;
+                fetch(mapUrl)
+                    .then(res => res.json())
+                    .then(geoData => {
+                        let storeName = geoData.address.shop || geoData.address.amenity || geoData.address.supermarket || "Current Store";
+                        btnText.innerText = "✅";
+                        let dropdown = document.getElementById('store-select');
+                        let newOption = document.createElement("option");
+                        newOption.text = storeName; newOption.value = storeName; newOption.selected = true;
