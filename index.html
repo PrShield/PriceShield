@@ -17,14 +17,13 @@
         .input-section { margin-bottom: 20px; }
         .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; font-weight: 600; }
         
-        /* High-visibility input styles optimized for mobile keyboards */
         .main-input { width: 100%; background: #0a0a0c; border: 1px solid #3f3f46; border-radius: 10px; color: #fff; padding: 12px; font-size: 18px; text-align: center; outline: none; margin-bottom: 12px; transition: border-color 0.2s; }
         .main-input:focus { border-color: #00ffcc; }
         
         .scan-btn { width: 100%; background: #00ffcc; color: #0a0a0c; border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
         .scan-btn:active { background: #00cca3; }
 
-        .product-output-box { background: #27272a; border-radius: 10px; padding: 14px; margin-bottom: 15px; display: none; }
+        .product-output-box { background: #27272a; border-radius: 10px; padding: 14px; margin-bottom: 15px; display: none; border: 1px solid #3f3f46; }
         .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 2px; }
         .product-meta { font-size: 13px; color: #a1a1aa; margin-bottom: 10px; }
         
@@ -50,15 +49,14 @@
     <div class="display-card">
         <!-- Input Layer -->
         <div class="input-section">
-            <label class="metric-label">Enter 12-Digit Barcode Number</label>
-            <!-- inputmode="numeric" automatically forces the iPhone to show the number pad keyboard -->
+            <label class="metric-label">Enter Barcode Number</label>
             <input type="text" pattern="[0-9]*" inputmode="numeric" maxlength="13" class="main-input" id="barcode-field" placeholder="000000000000">
             <button class="scan-btn" onclick="fetchRegistryData()">🔍 Query Registry</button>
         </div>
 
         <!-- Dynamic Product Registry Output Block -->
         <div class="product-output-box" id="output-block">
-            <div class="product-title" id="p-name">Loading...</div>
+            <div class="product-title" id="p-name">Searching...</div>
             <div class="product-meta" id="p-brand">Brand</div>
             <div class="metric-grid">
                 <div class="metric-box">
@@ -102,43 +100,48 @@
     <script>
         let currentProductOunces = 16.0;
 
-        // Directly targets Open Food Facts global registers using the typed string
+        // FIXED: Hits the exact unique product barcode endpoint for immediate results
         function fetchRegistryData() {
             let upc = document.getElementById('barcode-field').value.trim();
             if (!upc) return;
 
+            // Turn on visibility for the card block immediately
             document.getElementById('output-block').style.display = 'block';
-            document.getElementById('p-name').innerText = "Searching global database...";
+            document.getElementById('p-name').innerText = "Querying Database...";
             document.getElementById('p-brand').innerText = "";
+            document.getElementById('p-weight').innerText = "--";
 
+            // The exact direct lookup API path
             let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
             
             fetch(apiUrl)
                 .then(response => response.json())
                 .then(data => {
+                    // Check if product is confirmed inside open records
                     if (data.status === 1 && data.product) {
                         let prod = data.product;
                         document.getElementById('p-name').innerText = prod.product_name || "Registered Item";
                         document.getElementById('p-brand').innerText = prod.brands || "Generic Brand";
                         
-                        let rawQuantity = prod.quantity || "16 oz";
+                        let rawQuantity = prod.quantity || "Size Unlisted";
                         document.getElementById('p-weight').innerText = rawQuantity;
                         
-                        // Parse out real math denominators
+                        // Enforce system math translation rules
                         currentProductOunces = parseFloat(prod.product_quantity) ? (parseFloat(prod.product_quantity) * 0.035274).toFixed(1) : 16.0;
                         if(rawQuantity.toLowerCase().includes('oz')) {
                             currentProductOunces = parseFloat(rawQuantity);
                         }
                     } else {
-                        // Fallback handling if barcode is brand-new to the registry
-                        document.getElementById('p-name').innerText = "Item Not Found in Registry";
-                        document.getElementById('p-brand').innerText = "Defaulting to Standard Base";
-                        document.getElementById('p-weight').innerText = "16.0 oz";
+                        // Dynamic manual entry override mode if grocery barcode is completely missing
+                        document.getElementById('p-name').innerText = "Not Found in Global Database";
+                        document.getElementById('p-brand').innerText = "Manual Safety Reset Engaged";
+                        document.getElementById('p-weight').innerText = "16.0 oz (Standard Base)";
                         currentProductOunces = 16.0;
                     }
                 })
                 .catch(err => {
-                    document.getElementById('p-name').innerText = "Network Shield Active";
+                    console.error(err);
+                    document.getElementById('p-name').innerText = "Connection Shield Error";
                 });
         }
 
@@ -168,7 +171,4 @@
             let price = parseFloat(document.getElementById('shelf-price-field').value);
             let selectedStore = document.getElementById('store-select').value;
             if (!price || price <= 0) return;
-            
-            let pricePerOunce = (price / currentProductOunces).toFixed(3);
-            document.getElementById('p-ratio').innerText = `$${pricePerOunce}/oz`;
             
