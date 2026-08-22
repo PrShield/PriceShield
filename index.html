@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Shield Live Engine</title>
     <!-- Include a highly stable, iOS-native barcode parsing engine -->
-    <script src="https://unpkg.com"></script>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0c; color: #e4e4e7; padding: 15px; }
@@ -13,10 +13,12 @@
         .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
         .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
         
-        #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; }
-        /* Native layout fix forces the stream box to stay visible inside Safari */
+        #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; display: flex; align-items: center; justify-content: center; }
         #native-video-feed { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 75%; height: 80px; border: 2px dashed #00ffcc; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; }
+        .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 75%; height: 80px; border: 2px dashed #00ffcc; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; z-index: 10; }
+        
+        /* Interactive overlay button designed to shatter Apple's hardware block */
+        .start-overlay-btn { position: absolute; background: #00ffcc; color: #0a0a0c; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 20; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.3); }
         
         .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px; max-width: 450px; margin: 15px auto 0; }
         .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
@@ -43,19 +45,20 @@
 <body>
     <div class="header">
         <h1>Price Shield Engine</h1>
-        <p>Align grocery barcode inside the grid lines to scan</p>
+        <p>Tap 'Activate Lens' to start the anti-surveillance grid</p>
     </div>
     
     <div id="scanner-viewport">
-        <!-- Native video element using iOS displayinline fix rules -->
-        <video id="native-video-feed" autoplay playsinline muted controls="false"></video>
+        <!-- Human interaction proxy button to kill Safari autoplay security tags -->
+        <button class="start-overlay-btn" id="trigger-lens-btn" onclick="initializeSovereignLens()">🔒 Activate Lens</button>
+        <video id="native-video-feed" autoplay playsinline muted></video>
         <div class="scan-target"></div>
     </div>
 
     <div class="display-card">
         <div id="product-display">
-            <div class="product-title" id="p-name">Scan Target Active</div>
-            <div class="product-meta" id="p-upc">Position barcode in viewfinder</div>
+            <div class="product-title" id="p-name">Scan Target Standing By</div>
+            <div class="product-meta" id="p-upc">Activate lens, then aim at barcode</div>
             
             <div class="metric-grid">
                 <div class="metric-box"><div class="metric-label">Registry Weight</div><div class="metric-value" id="p-weight">16.0 oz</div></div>
@@ -92,31 +95,36 @@
     <script>
         let currentProductOunces = 16.0;
         let lastScannedBarcode = "";
-        
-        // Initialize the universal native ZXing multi-format barcode parser
         const codeReader = new ZXing.BrowserMultiFormatReader();
         const videoElement = document.getElementById('native-video-feed');
+        const triggerBtn = document.getElementById('trigger-lens-btn');
 
-        // Clean hardware stream activation logic mapping directly onto back lenses
-        codeReader.listVideoInputDevices()
-            .then((videoInputDevices) => {
-                // Default to using the main back environment camera array
-                codeReader.decodeFromVideoDevice(undefined, 'native-video-feed', (result, err) => {
-                    if (result) {
-                        let barcode = result.text;
-                        
-                        // Deduplication protection rule to prevent endless server loop hits
-                        if (barcode === lastScannedBarcode) return;
-                        lastScannedBarcode = barcode;
-                        
-                        document.getElementById('p-name').innerText = "Querying registries...";
-                        document.getElementById('p-upc').innerText = "UPC: " + barcode;
-                        
-                        fetchProductFromRegistry(barcode);
-                    }
+        // This function triggers ONLY when a human taps the green button, satisfying Apple's rules
+        function initializeSovereignLens() {
+            triggerBtn.innerText = "Initializing...";
+            
+            codeReader.listVideoInputDevices()
+                .then((videoInputDevices) => {
+                    // Force hide the activation button once Apple accepts the security handshake
+                    triggerBtn.style.display = 'none';
+                    
+                    codeReader.decodeFromVideoDevice(undefined, 'native-video-feed', (result, err) => {
+                        if (result) {
+                            let barcode = result.text;
+                            if (barcode === lastScannedBarcode) return;
+                            lastScannedBarcode = barcode;
+                            
+                            document.getElementById('p-name').innerText = "Querying registries...";
+                            document.getElementById('p-upc').innerText = "UPC: " + barcode;
+                            fetchProductFromRegistry(barcode);
+                        }
+                    });
+                })
+                .catch((err) => { 
+                    console.error("Hardware block:", err); 
+                    triggerBtn.innerText = "⚠️ Access Denied";
                 });
-            })
-            .catch((err) => { console.error("Hardware mapping crash:", err); });
+        }
 
         function fetchProductFromRegistry(upc) {
             let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
@@ -139,21 +147,10 @@
                         currentProductOunces = 16.0;
                     }
                 })
-                .catch(err => { console.error("Registry fetch fault:", err); });
+                .catch(err => { console.error("Registry vault down:", err); });
         }
 
         function getGPSLocation() {
             let btnText = document.getElementById('geo-button-text');
             if (!navigator.geolocation) { alert("GPS not supported."); return; }
             btnText.innerText = "Searching...";
-            navigator.geolocation.getCurrentPosition(function(position) {
-                let lat = position.coords.latitude;
-                let lon = position.coords.longitude;
-                let mapUrl = `https://openstreetmap.org{lat}&lon=${lon}`;
-                fetch(mapUrl)
-                    .then(res => res.json())
-                    .then(geoData => {
-                        let storeName = geoData.address.shop || geoData.address.amenity || geoData.address.supermarket || "Current Store";
-                        btnText.innerText = "📍 Found!";
-                        let dropdown = document.getElementById('store-select');
-                        let newOption = document.createElement("option");
