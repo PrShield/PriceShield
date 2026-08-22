@@ -8,145 +8,137 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0c; color: #e4e4e7; padding: 15px; }
         
-        .header { text-align: center; margin-bottom: 15px; }
-        .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 26px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
         .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
         
-        #scanner-viewport { width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px dashed #3f3f46; border-radius: 16px; background: #18181b; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 20px; text-align: center; }
+        .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 20px; max-width: 450px; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
         
-        /* FIXED: Added explicit cursor pointer rules and block layouts to enforce iOS Safari touch compatibility */
-        .lens-trigger-label { background: #00ffcc; color: #0a0a0c; border: none; padding: 14px 28px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer !important; z-index: 20; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.3); display: inline-block; text-align: center; -webkit-tap-highlight-color: transparent; }
-        .lens-trigger-label:active { background: #00cca3; }
-        #hidden-camera-hook { display: none; }
+        .input-section { margin-bottom: 20px; }
+        .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; font-weight: 600; }
+        
+        /* High-visibility input styles optimized for mobile keyboards */
+        .main-input { width: 100%; background: #0a0a0c; border: 1px solid #3f3f46; border-radius: 10px; color: #fff; padding: 12px; font-size: 18px; text-align: center; outline: none; margin-bottom: 12px; transition: border-color 0.2s; }
+        .main-input:focus { border-color: #00ffcc; }
+        
+        .scan-btn { width: 100%; background: #00ffcc; color: #0a0a0c; border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .scan-btn:active { background: #00cca3; }
 
-        .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px; max-width: 450px; margin: 15px auto 0; }
-        .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-        .product-meta { font-size: 14px; color: #a1a1aa; margin-bottom: 12px; }
+        .product-output-box { background: #27272a; border-radius: 10px; padding: 14px; margin-bottom: 15px; display: none; border: 1px solid #3f3f46; }
+        .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .product-meta { font-size: 13px; color: #a1a1aa; margin-bottom: 10px; }
         
-        .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .metric-box { background: #27272a; padding: 10px; border-radius: 8px; text-align: center; }
-        .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
-        .metric-value { font-size: 16px; font-weight: bold; color: #fff; margin-top: 2px; }
-        
-        .location-section { background: #27272a; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
-        .location-row { display: flex; gap: 8px; margin-top: 6px; }
-        .store-dropdown { flex: 1; background: #0a0a0c; border: 1px solid #3f3f46; color: #fff; padding: 8px; border-radius: 6px; font-size: 14px; outline: none; }
+        .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .metric-box { background: #18181b; padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #3f3f46; }
+        .metric-box-value { font-size: 15px; font-weight: bold; color: #fff; margin-top: 2px; }
+
+        .location-section { background: #27272a; border-radius: 10px; padding: 14px; margin-bottom: 15px; }
+        .location-row { display: flex; gap: 8px; }
+        .store-dropdown { flex: 1; background: #0a0a0c; border: 1px solid #3f3f46; color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; outline: none; }
         .geo-btn { background: #3f3f46; color: #fff; border: none; border-radius: 6px; padding: 0 12px; font-size: 14px; cursor: pointer; }
 
-        .price-input-row { display: flex; gap: 8px; margin-top: 6px; }
-        .price-input { flex: 1; background: #0a0a0c; border: 1px solid #3f3f46; border-radius: 8px; color: #fff; padding: 10px; font-size: 16px; text-align: center; outline: none; }
-        .price-input:focus { border-color: #00ffcc; }
-        .submit-btn { background: #00ffcc; color: #0a0a0c; border: none; border-radius: 8px; padding: 0 20px; font-size: 14px; font-weight: 700; cursor: pointer; }
-        .alert-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 10px; color: #f87171; font-size: 13px; font-weight: 500; display: none; text-align: center; margin-top: 10px; }
-        #preview-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; display: none; position: absolute; top:0; left:0; width:100%; height:100%; }
+        .alert-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 12px; color: #f87171; font-size: 13px; font-weight: 500; display: none; text-align: center; margin-top: 15px; line-height: 1.4; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h1>Price Shield Engine</h1>
-        <p>Snap a close-up photo of any barcode to extract registry data</p>
+        <p>Type barcode number to expose shrinkflation in real time</p>
     </div>
     
-    <div id="scanner-viewport">
-        <!-- FIXED: Added explicit onclick simulation rule to force manual input node clicks in Safari -->
-        <label for="hidden-camera-hook" class="lens-trigger-label" id="btn-text" onclick="document.getElementById('hidden-camera-hook').click();">📸 Snap Barcode</label>
-        <input type="file" accept="image/*" capture="environment" id="hidden-camera-hook" onchange="processBarcodePhoto(event)">
-        <img id="preview-img" alt="Scanned Asset">
-        <p style="font-size: 12px; color: #71717a; margin-top: 10px;" id="status-text">Ready to scan item</p>
-    </div>
-
     <div class="display-card">
-        <div id="product-display">
-            <div class="product-title" id="p-name">Scan Target Standing By</div>
-            <div class="product-meta" id="p-upc">Tap button to open camera</div>
-            
+        <!-- Input Layer -->
+        <div class="input-section">
+            <label class="metric-label">Enter Barcode Number (From Package)</label>
+            <!-- inputmode="numeric" automatically forces the iPhone to show the number pad keyboard -->
+            <input type="text" pattern="[0-9]*" inputmode="numeric" maxlength="13" class="main-input" id="barcode-field" placeholder="000000000000">
+            <button class="scan-btn" onclick="fetchRegistryData()">🔍 Query Registry</button>
+        </div>
+
+        <!-- Dynamic Product Registry Output Block -->
+        <div class="product-output-box" id="output-block">
+            <div class="product-title" id="p-name">Querying...</div>
+            <div class="product-meta" id="p-brand">Brand</div>
             <div class="metric-grid">
                 <div class="metric-box">
-                    <div class="metric-label">Registry Weight</div>
-                    <div class="metric-value" id="p-weight">16.0 oz</div>
+                    <div class="metric-label" style="font-size: 9px;">True Weight</div>
+                    <div class="metric-box-value" id="p-weight">-- oz</div>
                 </div>
                 <div class="metric-box">
-                    <div class="metric-label">Brand Owner</div>
-                    <div class="metric-value" id="p-brand">Unresolved</div>
+                    <div class="metric-label" style="font-size: 9px;">Calculated Value</div>
+                    <div class="metric-box-value" id="p-ratio">--/oz</div>
                 </div>
             </div>
-
-            <div class="location-section">
-                <label class="metric-label">📍 Where is this price found?</label>
-                <div class="location-row">
-                    <select class="store-dropdown" id="store-select">
-                        <option value="Unknown">Select Store (Anonymous)</option>
-                        <option value="Walmart">Walmart</option>
-                        <option value="Kroger">Kroger</option>
-                        <option value="Target">Target</option>
-                        <option value="Aldi">Aldi</option>
-                        <option value="Dollar General">Dollar General</option>
-                        <option value="Costco">Costco</option>
-                    </select>
-                    <button class="geo-btn" onclick="getGPSLocation()" id="geo-button-text">📍 GPS</button>
-                </div>
-            </div>
-
-            <div class="metric-label">Enter Current Shelf Price ($)</div>
-            <div class="price-input-row">
-                <input type="number" step="0.01" class="price-input" id="shelf-price-field" placeholder="0.00" inputmode="decimal">
-                <button class="submit-btn" onclick="calculateLiveMetrics()">Analyze</button>
-            </div>
-            
-            <div class="alert-box" id="shrinkflation-alert"></div>
         </div>
+
+        <!-- Location Context Section -->
+        <div class="location-section">
+            <label class="metric-label">📍 Where is this price found?</label>
+            <div class="location-row">
+                <select class="store-dropdown" id="store-select">
+                    <option value="Store">Select Store (Anonymous)</option>
+                    <option value="Walmart">Walmart</option>
+                    <option value="Kroger">Kroger</option>
+                    <option value="Target">Target</option>
+                    <option value="Aldi">Aldi</option>
+                    <option value="Dollar General">Dollar General</option>
+                    <option value="Costco">Costco</option>
+                </select>
+                <button class="geo-btn" onclick="getGPSLocation()" id="geo-button-text">📍 GPS</button>
+            </div>
+        </div>
+
+        <!-- Price Entry Layer -->
+        <div class="input-section" style="margin-bottom: 0;">
+            <label class="metric-label">Enter Shelf Sticker Price ($)</label>
+            <input type="number" step="0.01" class="main-input" id="shelf-price-field" placeholder="0.00" inputmode="decimal">
+            <button class="scan-btn" style="background: #fff; color: #0a0a0c;" onclick="calculateMetrics()">⚡ Run Price Analysis</button>
+        </div>
+        
+        <div class="alert-box" id="shrinkflation-alert"></div>
     </div>
 
     <script>
         let currentProductOunces = 16.0;
 
-        function processBarcodePhoto(event) {
-            const files = event.target.files;
-            if (!files || files.length === 0) return;
+        function fetchRegistryData() {
+            let upc = document.getElementById('barcode-field').value.trim();
+            if (!upc) return;
 
-            document.getElementById('status-text').innerText = "Analyzing barcode lines...";
-            document.getElementById('p-name').innerText = "Processing Pixel Stream...";
-            
-            const preview = document.getElementById('preview-img');
-            preview.src = URL.createObjectURL(files[0]);
-            preview.style.display = 'block';
+            document.getElementById('output-block').style.display = 'block';
+            document.getElementById('p-name').innerText = "Querying Registry...";
+            document.getElementById('p-brand').innerText = "";
+            document.getElementById('p-weight').innerText = "--";
 
-            setTimeout(() => {
-                let mockScannedUPC = "016000124792"; 
-                document.getElementById('p-name').innerText = "Querying registries...";
-                document.getElementById('p-upc').innerText = "UPC parsed: " + mockScannedUPC;
-                document.getElementById('status-text').innerText = "Analysis Complete ✅";
-                fetchProductFromRegistry(mockScannedUPC);
-            }, 1000);
-        }
-
-        function fetchProductFromRegistry(upc) {
+            // Directly queries Open Food Facts using the direct-barcode endpoint to bypass CORS network blocks
             let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
+            
             fetch(apiUrl)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 1 && data.product) {
                         let prod = data.product;
-                        document.getElementById('p-name').innerText = prod.product_name || "Honey Nut Cheerios";
-                        document.getElementById('p-brand').innerText = prod.brands || "General Mills";
-                        let rawQuantity = prod.quantity || "10.8 oz";
+                        document.getElementById('p-name').innerText = prod.product_name || "Registered Item";
+                        document.getElementById('p-brand').innerText = prod.brands || "Generic Brand";
+                        
+                        let rawQuantity = prod.quantity || "Size Unlisted";
                         document.getElementById('p-weight').innerText = rawQuantity;
                         
-                        currentProductOunces = parseFloat(prod.product_quantity) ? (parseFloat(prod.product_quantity) * 0.035274).toFixed(1) : 10.8;
-                        if(rawQuantity.toLowerCase().includes('oz')) { currentProductOunces = parseFloat(rawQuantity); }
+                        currentProductOunces = parseFloat(prod.product_quantity) ? (parseFloat(prod.product_quantity) * 0.035274).toFixed(1) : 16.0;
+                        if(rawQuantity.toLowerCase().includes('oz')) {
+                            currentProductOunces = parseFloat(rawQuantity);
+                        }
                     } else {
-                        document.getElementById('p-name').innerText = "Honey Nut Cheerios";
-                        document.getElementById('p-brand').innerText = "General Mills";
-                        document.getElementById('p-weight').innerText = "10.8 oz";
-                        currentProductOunces = 10.8;
+                        // Safe fallback handling if barcode is brand-new to the database registers
+                        document.getElementById('p-name').innerText = "Not Found in Registry";
+                        document.getElementById('p-brand').innerText = "Manual Override Engaged";
+                        document.getElementById('p-weight').innerText = "16.0 oz (Standard Base)";
+                        currentProductOunces = 16.0;
                     }
                 })
-                .catch(() => {
-                    document.getElementById('p-name').innerText = "Honey Nut Cheerios";
-                    document.getElementById('p-brand').innerText = "General Mills";
-                    document.getElementById('p-weight').innerText = "10.8 oz";
-                    currentProductOunces = 10.8;
+                .catch(err => {
+                    document.getElementById('p-name').innerText = "Database Request Timed Out";
                 });
         }
 
@@ -161,3 +153,20 @@
                 fetch(mapUrl)
                     .then(res => res.json())
                     .then(geoData => {
+                        let storeName = geoData.address.shop || geoData.address.amenity || geoData.address.supermarket || "Current Store";
+                        btnText.innerText = "✅";
+                        let dropdown = document.getElementById('store-select');
+                        let newOption = document.createElement("option");
+                        newOption.text = storeName; newOption.value = storeName; newOption.selected = true;
+                        dropdown.add(newOption);
+                    })
+                    .catch(() => { btnText.innerText = "❌"; });
+            }, function() { btnText.innerText = "❌"; });
+        }
+
+        function calculateMetrics() {
+            let price = parseFloat(document.getElementById('shelf-price-field').value);
+            let selectedStore = document.getElementById('store-select').value;
+            if (!price || price <= 0) return;
+            
+            let pricePerOunce = (price / currentProductOunces).toFixed(3);
