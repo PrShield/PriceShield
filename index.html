@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Shield Live Engine</title>
+    <!-- Include a highly compatible, universal barcode module script -->
+    <script src="https://jsdelivr.net"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0c; color: #e4e4e7; padding: 15px; }
@@ -42,7 +44,6 @@
     </div>
     
     <div id="scanner-viewport">
-        <video id="native-video-feed" autoplay playsinline muted></video>
         <div class="scan-target"></div>
     </div>
 
@@ -84,56 +85,43 @@
     </div>
 
     <script>
-        const videoElement = document.getElementById('native-video-feed');
         let currentProductOunces = 16.0;
         let lastScannedBarcode = "";
-        let barcodeDetector;
 
-        // Verify device supports native browser barcode scanning APIs
-        if ('BarcodeDetector' in window) {
-            barcodeDetector = new BarcodeDetector({ formats: ['upc_a', 'upc_e', 'ean_13', 'code_128'] });
-        } else {
-            document.getElementById('p-name').innerText = "System Constraint Alert";
-            document.getElementById('p-upc').innerText = "Native Barcode Engine Missing. Use Safari.";
-        }
-        
-        const constraints = {
-            audio: false,
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-        };
-
-        navigator.mediaDevices.getUserMedia(constraints)
-            .then((stream) => {
-                videoElement.srcObject = stream;
-                // Once camera frame stream maps cleanly, launch the analysis loop interval
-                videoElement.addEventListener('play', () => {
-                    setInterval(analyzeVideoFrame, 3000); // Scans the video track feed every 300 milliseconds
-                });
-            })
-            .catch((err) => { console.error("Hardware exception:", err); });
-
-        // High speed background processing thread scanning active canvas pixels
-        async function analyzeVideoFrame() {
-            if (!barcodeDetector || videoElement.paused || videoElement.ended) return;
-            
-            try {
-                const barcodes = await barcodeDetector.detect(videoElement);
-                if (barcodes.length > 0) {
-                    let detectedCode = barcodes[0].rawValue;
-                    
-                    // Stop repeating server fetches if looking at the same item
-                    if (detectedCode === lastScannedBarcode) return;
-                    lastScannedBarcode = detectedCode;
-                    
-                    document.getElementById('p-name').innerText = "Querying registries...";
-                    document.getElementById('p-upc').innerText = "UPC: " + detectedCode;
-                    
-                    fetchProductFromRegistry(detectedCode);
+        // Standard framework initializers that run natively inside iOS Safari configurations
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#scanner-viewport'),
+                constraints: {
+                    facingMode: "environment", // Forces back camera lens array
+                    width: 640,
+                    height: 480
                 }
-            } catch (error) {
-                console.error("Frame scanning failure:", error);
-            }
-        }
+            },
+            decoder: {
+                readers: ["upc_reader", "upc_e_reader", "ean_reader"] // standard retail grocery formats
+            },
+            locate: true
+        }, function(err) {
+            if (err) { console.error("Camera Hardware Exception:", err); return; }
+            Quagga.start();
+        });
+
+        // Frame processor callback loop triggered instantly upon structural layout matching
+        Quagga.onDetected(function(data) {
+            let barcode = data.codeResult.code;
+            
+            // Deduplication buffer rule to block redundant server hits
+            if (barcode === lastScannedBarcode) return;
+            lastScannedBarcode = barcode;
+            
+            document.getElementById('p-name').innerText = "Querying registries...";
+            document.getElementById('p-upc').innerText = "UPC: " + barcode;
+            
+            fetchProductFromRegistry(barcode);
+        });
 
         function fetchProductFromRegistry(upc) {
             let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
@@ -156,7 +144,7 @@
                         currentProductOunces = 16.0;
                     }
                 })
-                .catch(err => { console.error("Network fault:", err); });
+                .catch(err => { console.error("Data layer configuration error:", err); });
         }
 
         function getGPSLocation() {
@@ -165,3 +153,13 @@
             btnText.innerText = "Searching...";
             navigator.geolocation.getCurrentPosition(function(position) {
                 let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+                let mapUrl = `https://openstreetmap.org{lat}&lon=${lon}`;
+                fetch(mapUrl)
+                    .then(res => res.json())
+                    .then(geoData => {
+                        let storeName = geoData.address.shop || geoData.address.amenity || geoData.address.supermarket || "Current Store";
+                        btnText.innerText = "📍 Found!";
+                        let dropdown = document.getElementById('store-select');
+                        let newOption = document.createElement("option");
+                        newOption.text = storeName; newOption.value = storeName; newOption.selected = true;
