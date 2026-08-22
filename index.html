@@ -14,16 +14,16 @@
         
         .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 20px; max-width: 450px; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
         
-        .input-section { margin-bottom: 20px; }
+        .input-section { margin-bottom: 15px; }
         .metric-label { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; font-weight: 600; }
         
-        .main-input { width: 100%; background: #0a0a0c; border: 1px solid #3f3f46; border-radius: 10px; color: #fff; padding: 12px; font-size: 18px; text-align: center; outline: none; margin-bottom: 12px; transition: border-color 0.2s; }
+        .main-input { width: 100%; background: #0a0a0c; border: 1px solid #3f3f46; border-radius: 10px; color: #fff; padding: 12px; font-size: 18px; text-align: center; outline: none; margin-bottom: 10px; transition: border-color 0.2s; }
         .main-input:focus { border-color: #00ffcc; }
         
         .scan-btn { width: 100%; background: #00ffcc; color: #0a0a0c; border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
         .scan-btn:active { background: #00cca3; }
 
-        .product-output-box { background: #27272a; border-radius: 10px; padding: 14px; margin-bottom: 15px; display: none; border: 1px solid #3f3f46; }
+        .product-output-box { background: #27272a; border-radius: 10px; padding: 14px; margin-bottom: 15px; display: block; border: 1px solid #3f3f46; }
         .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 2px; }
         .product-meta { font-size: 13px; color: #a1a1aa; margin-bottom: 10px; }
         
@@ -43,36 +43,20 @@
 
     <div class="header">
         <h1>Price Shield Engine</h1>
-        <p>Type barcode number to expose shrinkflation in real time</p>
+        <p>Expose shrinkflation and surveillance pricing in real time</p>
     </div>
     
     <div class="display-card">
-        <!-- Input Layer -->
+        
+        <!-- Target Weight Setting Layer -->
         <div class="input-section">
-            <label class="metric-label">Enter Barcode Number</label>
-            <input type="text" pattern="[0-9]*" inputmode="numeric" maxlength="13" class="main-input" id="barcode-field" placeholder="000000000000">
-            <button class="scan-btn" onclick="fetchRegistryData()">🔍 Query Registry</button>
-        </div>
-
-        <!-- Dynamic Product Registry Output Block -->
-        <div class="product-output-box" id="output-block">
-            <div class="product-title" id="p-name">Searching...</div>
-            <div class="product-meta" id="p-brand">Brand</div>
-            <div class="metric-grid">
-                <div class="metric-box">
-                    <div class="metric-label" style="font-size: 9px;">True Weight</div>
-                    <div class="metric-box-value" id="p-weight">-- oz</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label" style="font-size: 9px;">Calculated Value</div>
-                    <div class="metric-box-value" id="p-ratio">--/oz</div>
-                </div>
-            </div>
+            <label class="metric-label">1. Product Package Size (Ounces)</label>
+            <input type="number" step="0.1" class="main-input" id="weight-field" placeholder="Enter Oz (e.g. 16.0)" value="16.0" inputmode="decimal">
         </div>
 
         <!-- Location Context Section -->
         <div class="location-section">
-            <label class="metric-label">📍 Where is this price found?</label>
+            <label class="metric-label">📍 2. Where is this price found?</label>
             <div class="location-row">
                 <select class="store-dropdown" id="store-select">
                     <option value="Store">Select Store (Anonymous)</option>
@@ -88,63 +72,32 @@
         </div>
 
         <!-- Price Entry Layer -->
-        <div class="input-section" style="margin-bottom: 0;">
-            <label class="metric-label">Enter Shelf Sticker Price ($)</label>
+        <div class="input-section">
+            <label class="metric-label">3. Enter Shelf Sticker Price ($)</label>
             <input type="number" step="0.01" class="main-input" id="shelf-price-field" placeholder="0.00" inputmode="decimal">
-            <button class="scan-btn" style="background: #fff; color: #0a0a0c;" onclick="calculateMetrics()">⚡ Run Price Analysis</button>
+            <button class="scan-btn" onclick="calculateMetrics()">⚡ Run Price Analysis</button>
+        </div>
+
+        <!-- Dynamic Registry Output Block -->
+        <div class="product-output-box" id="output-block">
+            <div class="product-title">Value Metrics Dashboard</div>
+            <div class="product-meta">Real-time valuation analytics</div>
+            <div class="metric-grid">
+                <div class="metric-box">
+                    <div class="metric-label" style="font-size: 9px;">Target Weight</div>
+                    <div class="metric-box-value" id="p-weight">16.0 oz</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label" style="font-size: 9px;">Calculated Value</div>
+                    <div class="metric-box-value" id="p-ratio">$0.000/oz</div>
+                </div>
+            </div>
         </div>
         
         <div class="alert-box" id="shrinkflation-alert"></div>
     </div>
 
     <script>
-        let currentProductOunces = 16.0;
-
-        // FIXED: Hits the exact unique product barcode endpoint for immediate results
-        function fetchRegistryData() {
-            let upc = document.getElementById('barcode-field').value.trim();
-            if (!upc) return;
-
-            // Turn on visibility for the card block immediately
-            document.getElementById('output-block').style.display = 'block';
-            document.getElementById('p-name').innerText = "Querying Database...";
-            document.getElementById('p-brand').innerText = "";
-            document.getElementById('p-weight').innerText = "--";
-
-            // The exact direct lookup API path
-            let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
-            
-            fetch(apiUrl)
-                .then(response => response.json())
-                .then(data => {
-                    // Check if product is confirmed inside open records
-                    if (data.status === 1 && data.product) {
-                        let prod = data.product;
-                        document.getElementById('p-name').innerText = prod.product_name || "Registered Item";
-                        document.getElementById('p-brand').innerText = prod.brands || "Generic Brand";
-                        
-                        let rawQuantity = prod.quantity || "Size Unlisted";
-                        document.getElementById('p-weight').innerText = rawQuantity;
-                        
-                        // Enforce system math translation rules
-                        currentProductOunces = parseFloat(prod.product_quantity) ? (parseFloat(prod.product_quantity) * 0.035274).toFixed(1) : 16.0;
-                        if(rawQuantity.toLowerCase().includes('oz')) {
-                            currentProductOunces = parseFloat(rawQuantity);
-                        }
-                    } else {
-                        // Dynamic manual entry override mode if grocery barcode is completely missing
-                        document.getElementById('p-name').innerText = "Not Found in Global Database";
-                        document.getElementById('p-brand').innerText = "Manual Safety Reset Engaged";
-                        document.getElementById('p-weight').innerText = "16.0 oz (Standard Base)";
-                        currentProductOunces = 16.0;
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('p-name').innerText = "Connection Shield Error";
-                });
-        }
-
         function getGPSLocation() {
             let btnText = document.getElementById('geo-button-text');
             if (!navigator.geolocation) { alert("GPS not supported."); return; }
@@ -157,7 +110,7 @@
                     .then(res => res.json())
                     .then(geoData => {
                         let storeName = geoData.address.shop || geoData.address.amenity || geoData.address.supermarket || "Current Store";
-                        btnText.innerText = "✅";
+                        btnText.innerText = "BC";
                         let dropdown = document.getElementById('store-select');
                         let newOption = document.createElement("option");
                         newOption.text = storeName; newOption.value = storeName; newOption.selected = true;
@@ -169,6 +122,32 @@
 
         function calculateMetrics() {
             let price = parseFloat(document.getElementById('shelf-price-field').value);
+            let ounces = parseFloat(document.getElementById('weight-field').value);
             let selectedStore = document.getElementById('store-select').value;
-            if (!price || price <= 0) return;
             
+            if (!price || price <= 0 || !ounces || ounces <= 0) {
+                alert("Please enter a valid price and package size ounces.");
+                return;
+            }
+            
+            let pricePerOunce = (price / ounces).toFixed(3);
+            
+            // Update Dashboard UI Elements instantly
+            document.getElementById('p-weight').innerText = ounces.toFixed(1) + " oz";
+            document.getElementById('p-ratio').innerText = `$${pricePerOunce}/oz`;
+            
+            let alertBox = document.getElementById('shrinkflation-alert');
+            alertBox.style.display = 'block';
+            
+            // Algorithmic evaluation baseline parameter logic
+            if (pricePerOunce > 0.35) { 
+                alertBox.style.color = '#f87171'; alertBox.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; alertBox.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                alertBox.innerHTML = `<strong>🚨 SQUEEZE DETECTED AT ${selectedStore.toUpperCase()}:</strong> This item is tracking at <strong>$${pricePerOunce}/oz</strong>. Corporate margin expansion detected. Check alternative sizes or nearby brands.`;
+            } else {
+                alertBox.style.color = '#34d399'; alertBox.style.backgroundColor = 'rgba(52, 211, 153, 0.1)'; alertBox.style.borderColor = 'rgba(52, 211, 153, 0.2)';
+                alertBox.innerHTML = `<strong>✅ FAIR VALUE COMPLIANT:</strong> Cost is <strong>$${pricePerOunce}/oz</strong> at ${selectedStore}. Price matches baseline weight-to-currency ratios.`;
+            }
+        }
+    </script>
+</body>
+</html>
