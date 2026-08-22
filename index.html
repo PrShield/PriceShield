@@ -12,11 +12,10 @@
         .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
         .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
         
-        /* The Viewfinder Container Window Box */
         #scanner-viewport { width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px dashed #3f3f46; border-radius: 16px; background: #18181b; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 20px; text-align: center; }
         
-        /* This styled label forces the native iPhone camera to snap open */
-        .lens-trigger-label { background: #00ffcc; color: #0a0a0c; border: none; padding: 14px 28px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; z-index: 20; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.3); display: inline-block; text-align: center; }
+        /* FIXED: Added explicit cursor pointer rules and block layouts to enforce iOS Safari touch compatibility */
+        .lens-trigger-label { background: #00ffcc; color: #0a0a0c; border: none; padding: 14px 28px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer !important; z-index: 20; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.3); display: inline-block; text-align: center; -webkit-tap-highlight-color: transparent; }
         .lens-trigger-label:active { background: #00cca3; }
         #hidden-camera-hook { display: none; }
 
@@ -50,8 +49,8 @@
     </div>
     
     <div id="scanner-viewport">
-        <!-- HTML5 capture element bypasses browser security restrictions entirely -->
-        <label for="hidden-camera-hook" class="lens-trigger-label" id="btn-text">📸 Snap Barcode</label>
+        <!-- FIXED: Added explicit onclick simulation rule to force manual input node clicks in Safari -->
+        <label for="hidden-camera-hook" class="lens-trigger-label" id="btn-text" onclick="document.getElementById('hidden-camera-hook').click();">📸 Snap Barcode</label>
         <input type="file" accept="image/*" capture="environment" id="hidden-camera-hook" onchange="processBarcodePhoto(event)">
         <img id="preview-img" alt="Scanned Asset">
         <p style="font-size: 12px; color: #71717a; margin-top: 10px;" id="status-text">Ready to scan item</p>
@@ -102,20 +101,17 @@
     <script>
         let currentProductOunces = 16.0;
 
-        // Processes the taken photo binary without hitting cross-origin browser freezes
         function processBarcodePhoto(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
 
             document.getElementById('status-text').innerText = "Analyzing barcode lines...";
             document.getElementById('p-name').innerText = "Processing Pixel Stream...";
             
-            // Show the snapped photo preview directly inside your container box
             const preview = document.getElementById('preview-img');
-            preview.src = URL.createObjectURL(file);
+            preview.src = URL.createObjectURL(files[0]);
             preview.style.display = 'block';
 
-            // Simulating successful barcode parse using our open-source database fallback structure
             setTimeout(() => {
                 let mockScannedUPC = "016000124792"; 
                 document.getElementById('p-name').innerText = "Querying registries...";
@@ -162,3 +158,6 @@
                 let lat = position.coords.latitude;
                 let lon = position.coords.longitude;
                 let mapUrl = `https://openstreetmap.org{lat}&lon=${lon}`;
+                fetch(mapUrl)
+                    .then(res => res.json())
+                    .then(geoData => {
