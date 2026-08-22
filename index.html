@@ -4,17 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Shield Live Engine</title>
-    <!-- Include a highly compatible, universal barcode module script -->
-    <script src="https://jsdelivr.net"></script>
+    <!-- Include a highly stable, iOS-native barcode parsing engine -->
+    <script src="https://unpkg.com"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0c; color: #e4e4e7; padding: 15px; }
         .header { text-align: center; margin-bottom: 15px; }
         .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
         .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
+        
         #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; }
-        #scanner-viewport video { width: 100%; height: 100%; object-fit: cover; }
+        /* Native layout fix forces the stream box to stay visible inside Safari */
+        #native-video-feed { width: 100%; height: 100%; object-fit: cover; display: block; }
         .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 75%; height: 80px; border: 2px dashed #00ffcc; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; }
+        
         .display-card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px; max-width: 450px; margin: 15px auto 0; }
         .product-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
         .product-meta { font-size: 14px; color: #a1a1aa; margin-bottom: 12px; }
@@ -44,6 +47,8 @@
     </div>
     
     <div id="scanner-viewport">
+        <!-- Native video element using iOS displayinline fix rules -->
+        <video id="native-video-feed" autoplay playsinline muted controls="false"></video>
         <div class="scan-target"></div>
     </div>
 
@@ -87,41 +92,31 @@
     <script>
         let currentProductOunces = 16.0;
         let lastScannedBarcode = "";
+        
+        // Initialize the universal native ZXing multi-format barcode parser
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        const videoElement = document.getElementById('native-video-feed');
 
-        // Standard framework initializers that run natively inside iOS Safari configurations
-        Quagga.init({
-            inputStream: {
-                name: "Live",
-                type: "LiveStream",
-                target: document.querySelector('#scanner-viewport'),
-                constraints: {
-                    facingMode: "environment", // Forces back camera lens array
-                    width: 640,
-                    height: 480
-                }
-            },
-            decoder: {
-                readers: ["upc_reader", "upc_e_reader", "ean_reader"] // standard retail grocery formats
-            },
-            locate: true
-        }, function(err) {
-            if (err) { console.error("Camera Hardware Exception:", err); return; }
-            Quagga.start();
-        });
-
-        // Frame processor callback loop triggered instantly upon structural layout matching
-        Quagga.onDetected(function(data) {
-            let barcode = data.codeResult.code;
-            
-            // Deduplication buffer rule to block redundant server hits
-            if (barcode === lastScannedBarcode) return;
-            lastScannedBarcode = barcode;
-            
-            document.getElementById('p-name').innerText = "Querying registries...";
-            document.getElementById('p-upc').innerText = "UPC: " + barcode;
-            
-            fetchProductFromRegistry(barcode);
-        });
+        // Clean hardware stream activation logic mapping directly onto back lenses
+        codeReader.listVideoInputDevices()
+            .then((videoInputDevices) => {
+                // Default to using the main back environment camera array
+                codeReader.decodeFromVideoDevice(undefined, 'native-video-feed', (result, err) => {
+                    if (result) {
+                        let barcode = result.text;
+                        
+                        // Deduplication protection rule to prevent endless server loop hits
+                        if (barcode === lastScannedBarcode) return;
+                        lastScannedBarcode = barcode;
+                        
+                        document.getElementById('p-name').innerText = "Querying registries...";
+                        document.getElementById('p-upc').innerText = "UPC: " + barcode;
+                        
+                        fetchProductFromRegistry(barcode);
+                    }
+                });
+            })
+            .catch((err) => { console.error("Hardware mapping crash:", err); });
 
         function fetchProductFromRegistry(upc) {
             let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
@@ -144,7 +139,7 @@
                         currentProductOunces = 16.0;
                     }
                 })
-                .catch(err => { console.error("Data layer configuration error:", err); });
+                .catch(err => { console.error("Registry fetch fault:", err); });
         }
 
         function getGPSLocation() {
@@ -162,4 +157,3 @@
                         btnText.innerText = "📍 Found!";
                         let dropdown = document.getElementById('store-select');
                         let newOption = document.createElement("option");
-                        newOption.text = storeName; newOption.value = storeName; newOption.selected = true;
