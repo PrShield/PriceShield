@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Shield Live Engine</title>
-    <!-- Include a highly optimized, standard barcode processing canvas decoder -->
-    <script src="https://unpkg.com"></script>
+    <!-- Include the ultra-stable, iOS-native Instascan framework -->
+    <script src="https://rawgit.com"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0c; color: #e4e4e7; padding: 15px; }
@@ -14,12 +14,13 @@
         .header h1 { font-size: 24px; color: #00ffcc; font-weight: 800; letter-spacing: -0.5px; }
         .header p { font-size: 13px; color: #a1a1aa; margin-top: 4px; }
         
-        /* Unified Viewfinder Box Container */
+        /* The Rigid Rectangular Viewfinder Frame Box */
         #scanner-viewport { position: relative; width: 100%; max-width: 450px; height: 220px; margin: 0 auto; border: 2px solid #27272a; border-radius: 16px; overflow: hidden; background: #18181b; display: flex; align-items: center; justify-content: center; }
-        #native-video-feed { width: 100%; height: 100%; object-fit: cover; display: block; }
+        
+        /* Enforces video inline parameters so it CANNOT open the full camera app */
+        #native-video-feed { width: 100%; height: 100%; object-fit: cover; display: block; position: absolute; top: 0; left: 0; }
         .scan-target { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 75%; height: 80px; border: 2px dashed #00ffcc; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; z-index: 10; }
         
-        /* Interactive overlay button designed to shatter Apple's hardware block */
         .start-overlay-btn { position: absolute; background: #00ffcc; color: #0a0a0c; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 20; box-shadow: 0 4px 14px rgba(0, 255, 204, 0.3); }
         .start-overlay-btn:active { background: #00cca3; }
         
@@ -51,16 +52,17 @@
     </div>
     
     <div id="scanner-viewport">
-        <!-- Interactive start block cleanly maps authorization to satisfy Safari requirements -->
-        <button class="start-overlay-btn" id="trigger-lens-btn" onclick="initializeLiveScanner()">⚡ Start Scanner</button>
-        <video id="native-video-feed" autoplay playsinline muted></video>
+        <!-- Human click trigger bypasses Apple security tags -->
+        <button class="start-overlay-btn" id="trigger-lens-btn" onclick="initializeInstascan()">⚡ Start Scanner</button>
+        <!-- The hardware fixes: playsinline, autoplay, and muted completely lock down the frame -->
+        <video id="native-video-feed" playsinline autoplay muted></video>
         <div class="scan-target"></div>
     </div>
 
     <div class="display-card">
         <div id="product-display">
             <div class="product-title" id="p-name">Scan Target Standing By</div>
-            <div class="product-meta" id="p-upc">Tap 'Start Scanner' to open camera view</div>
+            <div class="product-meta" id="p-upc">Tap 'Start Scanner' to open camera box</div>
             
             <div class="metric-grid">
                 <div class="metric-box">
@@ -102,68 +104,60 @@
     <script>
         let currentProductOunces = 16.0;
         let lastScannedBarcode = "";
-        const videoElement = document.getElementById('native-video-feed');
         const triggerBtn = document.getElementById('trigger-lens-btn');
-        const codeReader = new ZXing.BrowserMultiFormatReader();
 
-        // Activates the live camera feed straight into the webpage container frame
-        function initializeLiveScanner() {
+        function initializeInstascan() {
             triggerBtn.innerText = "Connecting...";
             
-            // STRICT HARDWARE LOCK: Forces the app to ignore the selfie camera and lock directly to the rear lens array
-            const constraints = {
-                audio: false,
-                video: {
-                    facingMode: { exact: "environment" },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            };
+            // Instascan engine setup targeting the native video object frame
+            let scanner = new Instascan.Scanner({ 
+                video: document.getElementById('native-video-feed'), 
+                mirror: false, // Prevents flipping the barcode text backward
+                backgroundScan: false 
+            });
 
-            navigator.mediaDevices.getUserMedia(constraints)
-                .then((stream) => {
-                    // Hide the trigger overlay immediately
+            // Capture logic triggers instantly when barcode boundaries match scanning matrices
+            scanner.addListener('scan', function (content) {
+                if (content === lastScannedBarcode) return;
+                lastScannedBarcode = content;
+                
+                document.getElementById('p-name').innerText = "Querying registries...";
+                document.getElementById('p-upc').innerText = "UPC Captured: " + content;
+                fetchProductFromRegistry(content);
+            });
+
+            // Lock onto the phone's physical back lenses
+            Instascan.Camera.getCameras().then(function (cameras) {
+                if (cameras.length > 0) {
                     triggerBtn.style.display = 'none';
-                    videoElement.srcObject = stream;
                     
-                    document.getElementById('p-name').innerText = "Live Scanner Active";
-                    document.getElementById('p-upc').innerText = "Center barcode inside the neon rectangle";
-                    
-                    // Fire up the continuous analysis scanner loop directly using the stream frames
-                    codeReader.decodeFromVideoElement(videoElement, (result, err) => {
-                        if (result) {
-                            let barcodeValue = result.text;
-                            
-                            // Block redundant hits on the same barcode
-                            if (barcodeValue === lastScannedBarcode) return;
-                            lastScannedBarcode = barcodeValue;
-                            
-                            // Play a clean haptic alert confirmation sound
-                            if (window.navigator.vibrate) window.navigator.vibrate(100);
-                            
-                            document.getElementById('p-name').innerText = "Querying registries...";
-                            document.getElementById('p-upc').innerText = "UPC Captured: " + barcodeValue;
-                            fetchProductFromRegistry(barcodeValue);
-                        }
-                    });
-                })
-                .catch((err) => {
-                    console.error("Camera hook failed:", err);
-                    // Fail-safe graceful fallback option if the system blocks the exact environment parameter
-                    fallbackScannerLaunch();
-                });
+                    // Rear camera routing logic for multi-lens arrays (like iPhone 13)
+                    let backCam = cameras.find(cam => cam.name.toLowerCase().includes('back') || cam.name.toLowerCase().includes('environment')) || cameras[cameras.length - 1];
+                    scanner.start(backCam);
+                } else {
+                    console.error('No hardware lens detected.');
+                    triggerBtn.innerText = "⚠️ No Camera Found";
+                }
+            }).catch(function (e) {
+                console.error(e);
+                triggerBtn.innerText = "⚠️ Access Blocked";
+                alert("Ensure your Safari browser location/camera permissions are set to ALLOW.");
+            });
         }
 
-        // Safe fallback launcher utilizing broader video constraints if exact tracking breaks
-        function fallbackScannerLaunch() {
-            codeReader.decodeFromInputVideoDevice(undefined, 'native-video-feed', (result, err) => {
-                if (result) {
-                    let barcodeValue = result.text;
-                    if (barcodeValue === lastScannedBarcode) return;
-                    lastScannedBarcode = barcodeValue;
-                    
-                    document.getElementById('p-name').innerText = "Querying registries...";
-                    document.getElementById('p-upc').innerText = "UPC Captured: " + barcodeValue;
-                    fetchProductFromRegistry(barcodeValue);
-                }
-            });
+        function fetchProductFromRegistry(upc) {
+            let apiUrl = `https://openfoodfacts.org{upc}.json?fields=product_name,brands,quantity,product_quantity`;
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 1 && data.product) {
+                        let prod = data.product;
+                        document.getElementById('p-name').innerText = prod.product_name || "Unknown Product";
+                        document.getElementById('p-brand').innerText = prod.brands || "Generic Brand";
+                        let rawQuantity = prod.quantity || "Size Unavailable";
+                        document.getElementById('p-weight').innerText = rawQuantity;
+                        
+                        currentProductOunces = parseFloat(prod.product_quantity) ? (parseFloat(prod.product_quantity) * 0.035274).toFixed(1) : 16.0;
+                        if(rawQuantity.toLowerCase().includes('oz')) { currentProductOunces = parseFloat(rawQuantity); }
+                    } else {
+                        document.getElementById('p-name').innerText = "Unregistered Item Base Line";
